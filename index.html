@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MYRAA MOTOR CONTROL</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101010;
+      --panel: #202020;
+      --button: #292929;
+      --accent: #18c784;
+      --danger: #a71919;
+      --text: #ffffff;
+      --muted: #bdbdbd;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #202b31, var(--bg) 55%);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 22px 14px 32px;
+      user-select: none;
+    }
+
+    main { max-width: 440px; margin: 0 auto; }
+
+    h1 { margin: 8px 0 6px; font-size: 2rem; }
+    .subtitle { color: var(--muted); margin: 0 0 18px; }
+
+    .status {
+      margin: 0 auto 22px;
+      padding: 13px;
+      background: var(--panel);
+      border: 1px solid #343434;
+      border-radius: 14px;
+      line-height: 1.5;
+    }
+
+    .notice {
+      color: #ffe0a3;
+      font-size: .9rem;
+      line-height: 1.45;
+      margin: 12px 0 20px;
+    }
+
+    .speed { margin: 18px 0; }
+    .speed p { color: var(--muted); font-weight: bold; letter-spacing: .12em; }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .speed button {
+      min-width: 82px;
+      padding: 12px 14px;
+      margin: 4px;
+      background: #e8e8e8;
+      color: #111;
+    }
+
+    .speed button[aria-pressed="true"] {
+      background: var(--accent);
+      color: #07140e;
+    }
+
+    .control { margin: 22px auto; }
+    .row { display: flex; justify-content: center; gap: 8px; }
+
+    .move {
+      width: 92px;
+      height: 82px;
+      margin: 4px 0;
+      background: var(--button);
+      border: 1px solid #444;
+      color: white;
+      font-size: 30px;
+      touch-action: none;
+    }
+
+    .move:active { background: #414141; }
+    .stop { background: var(--danger); border-color: #d33; }
+
+    .footer {
+      color: var(--muted);
+      font-size: .85rem;
+      line-height: 1.6;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🤖 MYRAA</h1>
+    <p class="subtitle">Motor Control Panel</p>
+
+    <div class="status">
+      <strong>ESP32-S3 + L298N</strong><br>
+      <span id="connection">Web panel loaded — ESP32 connection not verified</span>
+    </div>
+
+    <div class="notice">
+      This is the hosted control-panel interface. The original ESP32 code accepts commands at
+      <code>/F</code>, <code>/B</code>, <code>/L</code>, <code>/R</code>, <code>/S</code>,
+      <code>/low</code>, <code>/mid</code> and <code>/high</code>. A hosted page needs a
+      network bridge (such as a properly secured API or MQTT setup) to reach the robot remotely.
+    </div>
+
+    <section class="speed" aria-label="Speed settings">
+      <p>SPEED</p>
+      <button type="button" data-command="low" aria-pressed="false">LOW</button>
+      <button type="button" data-command="mid" aria-pressed="false">MID</button>
+      <button type="button" data-command="high" aria-pressed="true">HIGH</button>
+    </section>
+
+    <section class="control" aria-label="Robot movement controls">
+      <div class="row">
+        <button type="button" class="move" data-move="F" aria-label="Forward">▲</button>
+      </div>
+      <div class="row">
+        <button type="button" class="move" data-move="L" aria-label="Left">◀</button>
+        <button type="button" class="move stop" id="stopButton" aria-label="Stop">■</button>
+        <button type="button" class="move" data-move="R" aria-label="Right">▶</button>
+      </div>
+      <div class="row">
+        <button type="button" class="move" data-move="B" aria-label="Backward">▼</button>
+      </div>
+    </section>
+
+    <p class="footer">
+      F = Forward · B = Backward · L = Left · R = Right · S = Stop<br>
+      Safety: test with the wheels lifted off the ground first.
+    </p>
+  </main>
+
+  <script>
+    /*
+      IMPORTANT:
+      This page is a static UI only. It does not directly control the ESP32 from Render.
+      Connect these functions to a secure backend/bridge before using the controls with motors.
+    */
+    const connection = document.getElementById("connection");
+
+    function sendCommand(command) {
+      // No network request is sent until you configure a secure ESP32/API bridge.
+      connection.textContent = "UI only — configure an ESP32 network bridge to send commands";
+      console.log("Control command selected:", command);
+    }
+
+    document.querySelectorAll("[data-move]").forEach((button) => {
+      const command = button.dataset.move;
+
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        sendCommand(command);
+      });
+
+      const stop = (event) => {
+        if (event) event.preventDefault();
+        sendCommand("S");
+      };
+
+      button.addEventListener("pointerup", stop);
+      button.addEventListener("pointercancel", stop);
+      button.addEventListener("lostpointercapture", stop);
+      button.addEventListener("contextmenu", (event) => event.preventDefault());
+    });
+
+    document.getElementById("stopButton").addEventListener("click", () => sendCommand("S"));
+
+    document.querySelectorAll("[data-command]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-command]").forEach((item) => {
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+        sendCommand(button.dataset.command);
+      });
+    });
+  </script>
+</body>
+</html>
